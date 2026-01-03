@@ -63,3 +63,90 @@ Folder scan
 Summary output
 CSV export
 
+The code for this is as follows:
+
+from pathlib import Path
+from datetime import datetime
+import csv
+
+# ======================
+# CONFIG
+# ======================
+BASE_DIR = Path(__file__).parent
+TARGET_FOLDER = BASE_DIR / "test_files"
+REPORT_FILE = BASE_DIR / "audit_report.csv"
+# =======================
+
+
+def bytes_to_mb(num_bytes: int) -> float:
+    return num_bytes / (1024 * 1024)
+
+
+def safe_mtime(path: Path) -> datetime:
+    return datetime.fromtimestamp(path.stat().st_mtime)
+
+
+def main() -> None:
+    print(">>> MAIN() IS RUNNING <<<")
+    print("SCRIPT LOCATION:", BASE_DIR)
+    print("TARGET FOLDER:", TARGET_FOLDER)
+    print("REPORT FILE:", REPORT_FILE)
+    if not TARGET_FOLDER.exists():
+        print(f"[ERROR] Target folder not found: {TARGET_FOLDER}")
+        return
+
+    files = [p for p in TARGET_FOLDER.iterdir() if p.is_file()]
+
+    if not files:
+        print("No files found in target folder.")
+        return
+
+    rows = []
+    total_size = 0
+
+    for f in files:
+        size = f.stat().st_size
+        total_size += size
+        rows.append(
+            {
+                "name": f.name,
+                "extension": f.suffix.lower(),
+                "size_bytes": size,
+                "size_mb": round(bytes_to_mb(size), 3),
+                "modified": safe_mtime(f).strftime("%Y-%m-%d %H:%M:%S"),
+                "full_path": str(f),
+            }
+        )
+
+    total_files = len(files)
+    total_mb = round(bytes_to_mb(total_size), 3)
+
+    largest = max(files, key=lambda p: p.stat().st_size)
+    oldest = min(files, key=lambda p: p.stat().st_mtime)
+    newest = max(files, key=lambda p: p.stat().st_mtime)
+
+    print("===== FILE AUDIT SUMMARY =====")
+    print(f"Folder: {TARGET_FOLDER}")
+    print(f"Total files: {total_files}")
+    print(f"Total size : {total_mb} MB")
+    print(
+        f"Largest file: {largest.name} ({round(bytes_to_mb(largest.stat().st_size), 3)} MB)"
+    )
+    print(f"Oldest file : {oldest.name} (modified {safe_mtime(oldest)})")
+    print(f"Newest file : {newest.name} (modified {safe_mtime(newest)})")
+
+    with open(REPORT_FILE, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+
+    print(f"\nReport created: {REPORT_FILE}")
+
+if __name__ == "__main__":
+    main()
+
+#### Author ####
+
+Zain Barkatali
+Barkatali Technology
+Automation & IT systems for small businesses
